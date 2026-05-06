@@ -16,6 +16,21 @@ export interface Project {
 // Calendar / Events
 export type EventType = '1:1' | 'standup' | 'team' | 'review' | 'sync' | 'playtest'
 
+// Recurrence
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom'
+export type RecurrenceIntervalUnit = 'day' | 'week' | 'month'
+export type RecurrenceEndType = 'never' | 'on' | 'after'
+
+export interface RecurrenceRule {
+  frequency: RecurrenceFrequency
+  interval: number                // every N days/weeks/months (custom)
+  intervalUnit: RecurrenceIntervalUnit
+  daysOfWeek: number[]            // 0=Sun … 6=Sat
+  endType: RecurrenceEndType
+  endDate: string                 // YYYY-MM-DD
+  endAfter: number                // occurrence count
+}
+
 export interface CalendarEvent {
   id: string
   projectId: ProjectId
@@ -27,6 +42,8 @@ export interface CalendarEvent {
   attendees: string[]
   description?: string
   isRecurring?: boolean
+  recurrenceId?: string           // groups recurring instances
+  recurrenceRule?: RecurrenceRule
 }
 
 // Tasks
