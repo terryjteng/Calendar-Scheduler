@@ -50,6 +50,13 @@ export interface CalendarEvent {
 export type TaskStatus = 'backlog' | 'in-progress' | 'review' | 'done'
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
 
+export interface TaskNote {
+  id: string
+  author: string
+  text: string
+  timestamp: string // ISO string
+}
+
 export interface Task {
   id: string
   projectId: ProjectId
@@ -61,6 +68,7 @@ export interface Task {
   dueDate?: string // YYYY-MM-DD
   tags?: string[]
   createdAt: string
+  notes?: TaskNote[]
 }
 
 // Team members
