@@ -1,9 +1,10 @@
-﻿import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdminUser } from '@/lib/auth'
 import { createClient } from '@/lib/supabase'
 
-const VALID_ROLES = ['member', 'team_lead', 'admin']
+// Must match Central Command lib/roles.ts ROLE_OPTIONS exactly
+const VALID_ROLES = ['super_admin', 'team_lead', 'social_media_manager', 'member', 'client']
 
 export async function PATCH(
   req: NextRequest,
@@ -23,8 +24,15 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
   }
 
-  const supabase = createClient()
+  // 1. Write to Clerk publicMetadata — this is the single source of truth that
+  //    ALL platforms (Central Command, HR Tool, etc.) read from Clerk JWT tokens.
+  const clerk = await clerkClient()
+  await clerk.users.updateUser(targetUserId, {
+    publicMetadata: { role: body.role },
+  })
 
+  // 2. Mirror to Supabase profile for Scheduler-specific lookups
+  const supabase = createClient()
   const { data: existing } = await supabase
     .from('profiles')
     .select('user_id')
@@ -32,14 +40,9 @@ export async function PATCH(
     .single()
 
   if (existing) {
-    await supabase
-      .from('profiles')
-      .update({ role: body.role })
-      .eq('user_id', targetUserId)
+    await supabase.from('profiles').update({ role: body.role }).eq('user_id', targetUserId)
   } else {
-    await supabase
-      .from('profiles')
-      .insert({ user_id: targetUserId, role: body.role })
+    await supabase.from('profiles').insert({ user_id: targetUserId, role: body.role })
   }
 
   return NextResponse.json({ success: true, role: body.role })

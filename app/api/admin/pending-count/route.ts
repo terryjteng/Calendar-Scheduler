@@ -1,7 +1,6 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { isAdminUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase'
 
 export async function GET() {
   const { userId } = await auth()
@@ -12,14 +11,9 @@ export async function GET() {
   const clerk = await clerkClient()
   const { data: clerkUsers } = await clerk.users.getUserList({ limit: 200 })
 
-  const supabase = createClient()
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('user_id, role')
-    .not('role', 'is', null)
-
-  const roledIds = new Set((profiles ?? []).map(p => p.user_id))
-  const count = clerkUsers.filter(u => !roledIds.has(u.id)).length
+  // Clerk publicMetadata.role is the single source of truth for all platforms.
+  // A user is "pending" if they've signed up but haven't been granted a role yet.
+  const count = clerkUsers.filter(u => !u.publicMetadata?.role).length
 
   return NextResponse.json({ count })
 }

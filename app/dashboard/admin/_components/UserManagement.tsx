@@ -19,10 +19,14 @@ type User = {
 
 type ConfirmStep = 'select' | 'grant_needed' | 'updating' | 'success'
 
+// Must match Central Command lib/roles.ts ROLE_OPTIONS exactly — these values
+// are written to Clerk publicMetadata and read by ALL platforms.
 const ROLES = [
-  { value: 'member',    label: 'Member',    color: '#6366f1' },
-  { value: 'team_lead', label: 'Team Lead', color: '#f59e0b' },
-  { value: 'admin',     label: 'Admin',     color: '#e85d7b' },
+  { value: 'member',               label: 'Member',               color: '#64748b' },
+  { value: 'team_lead',            label: 'Team Lead',            color: '#3b82f6' },
+  { value: 'social_media_manager', label: 'Social Media Manager', color: '#0d9488' },
+  { value: 'client',               label: 'Client',               color: '#f59e0b' },
+  { value: 'super_admin',          label: 'Super Admin',          color: '#8b5cf6' },
 ]
 
 function fmtDate(ts: number | null) {

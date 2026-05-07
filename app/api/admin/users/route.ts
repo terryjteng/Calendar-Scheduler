@@ -21,6 +21,9 @@ export async function GET() {
 
   const users = clerkUsers.map(u => {
     const profile = profileMap.get(u.id)
+    // Clerk publicMetadata.role is the authoritative role used by all platforms.
+    // Supabase profile.role is a mirror kept in sync when role is assigned here.
+    const clerkRole = (u.publicMetadata?.role as string | undefined) ?? null
     return {
       id: u.id,
       firstName: u.firstName,
@@ -29,10 +32,9 @@ export async function GET() {
       imageUrl: u.imageUrl,
       createdAt: u.createdAt,
       lastSignInAt: u.lastSignInAt,
-      // Supabase profile fields
       displayName: profile?.display_name ?? null,
       team: profile?.team ?? null,
-      role: profile?.role ?? null,
+      role: clerkRole,
       isTeamLead: profile?.is_team_lead ?? false,
     }
   })
