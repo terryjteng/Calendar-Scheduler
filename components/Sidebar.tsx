@@ -136,7 +136,21 @@ export default function Sidebar({ activeProject, onProjectChange, activeView, on
         <ul className="space-y-0.5">
           <li>
             <a
-              href="http://localhost:5173"
+              href="https://kato8studiosapp.xyz"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-[#232d47] hover:text-slate-200 transition-all"
+            >
+              <span className="flex-shrink-0 w-2 h-2 rounded-full bg-violet-500" />
+              <span className="flex-1 truncate font-medium">Central Command</span>
+              <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </li>
+          <li>
+            <a
+              href="https://hr-tool-blush.vercel.app"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-[#232d47] hover:text-slate-300 transition-all"
@@ -150,7 +164,7 @@ export default function Sidebar({ activeProject, onProjectChange, activeView, on
           </li>
           <li>
             <a
-              href="http://localhost:5174"
+              href="https://social-media-dash-three.vercel.app"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-[#232d47] hover:text-slate-300 transition-all"

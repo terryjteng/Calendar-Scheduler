@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useUser } from '@clerk/nextjs'
+import { useUser, useClerk } from '@clerk/nextjs'
 import Sidebar from '@/components/Sidebar'
 import Calendar from '@/components/Calendar'
 import TaskBoard from '@/components/TaskBoard'
@@ -19,7 +19,8 @@ const VIEW_LABEL: Record<TabId, string> = {
 }
 
 export default function DashboardPage() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+  const { signOut } = useClerk()
   const [activeProject, setActiveProject] = useState<ProjectId>('general')
   const [activeView, setActiveView] = useState<TabId>('calendar')
 
@@ -48,11 +49,51 @@ export default function DashboardPage() {
     try { localStorage.setItem(LOCAL_STORAGE_VIEW_KEY, view) } catch {}
   }
 
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#f8fafc]">
+        <div className="w-8 h-8 rounded-full border-2 border-violet-600 border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  const role = user?.publicMetadata?.role as string | undefined
+  if (!role) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#f8fafc]">
+        <div className="max-w-md w-full mx-4 text-center">
+          <div
+            className="flex items-center justify-center w-16 h-16 rounded-2xl mx-auto mb-6 text-white text-2xl font-bold"
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+          >
+            K8
+          </div>
+          <h1 className="text-xl font-semibold text-slate-900 mb-2">Access Pending</h1>
+          <p className="text-sm text-slate-500 leading-relaxed mb-2">
+            Your account{' '}
+            <span className="font-medium text-slate-700">
+              {user?.emailAddresses?.[0]?.emailAddress}
+            </span>{' '}
+            hasn't been assigned a role yet.
+          </p>
+          <p className="text-sm text-slate-400 mb-8">
+            A Kato.8 admin will approve your access shortly.
+          </p>
+          <button
+            onClick={() => signOut({ redirectUrl: '/sign-in' })}
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const project = PROJECTS.find((p) => p.id === activeProject)!
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
-      {/* Sidebar */}
       <Sidebar
         activeProject={activeProject}
         onProjectChange={handleProjectChange}
@@ -60,9 +101,7 @@ export default function DashboardPage() {
         onViewChange={handleViewChange}
       />
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top header */}
         <header
           className="flex items-center justify-between px-6 py-3 bg-white"
           style={{ borderBottom: '1px solid #e2e8f0', minHeight: '56px' }}
@@ -103,7 +142,6 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* View content */}
         <div className="flex-1 overflow-hidden">
           {activeView === 'calendar' && <Calendar projectId={activeProject} />}
           {activeView === 'tasks' && <TaskBoard projectId={activeProject} />}
