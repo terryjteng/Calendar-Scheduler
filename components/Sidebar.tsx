@@ -129,54 +129,6 @@ export default function Sidebar({ activeProject, onProjectChange, activeView, on
           })}
         </ul>
 
-        {/* Suite section */}
-        <div className="mt-4 mb-1.5 px-3" style={{ borderTop: '1px solid #2e3a57', paddingTop: '16px' }}>
-          <span className="text-xs font-semibold tracking-widest text-slate-500 uppercase">Suite</span>
-        </div>
-        <ul className="space-y-0.5">
-          <li>
-            <a
-              href="https://kato8studiosapp.xyz"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-[#232d47] hover:text-slate-200 transition-all"
-            >
-              <span className="flex-shrink-0 w-2 h-2 rounded-full bg-violet-500" />
-              <span className="flex-1 truncate font-medium">Central Command</span>
-              <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-          </li>
-          <li>
-            <a
-              href="https://hr.kato8studiosapp.xyz"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-[#232d47] hover:text-slate-300 transition-all"
-            >
-              <span className="flex-shrink-0 w-2 h-2 rounded-full bg-slate-600" />
-              <span className="flex-1 truncate">HR Tool</span>
-              <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-          </li>
-          <li>
-            <a
-              href="https://social.kato8studiosapp.xyz"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-[#232d47] hover:text-slate-300 transition-all"
-            >
-              <span className="flex-shrink-0 w-2 h-2 rounded-full bg-slate-600" />
-              <span className="flex-1 truncate">Social Media Dash</span>
-              <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-          </li>
-        </ul>
       </nav>
 
       {/* User profile */}
