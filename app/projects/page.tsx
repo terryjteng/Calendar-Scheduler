@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 
 interface Project {
   id: string
@@ -146,39 +145,34 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div style={{ minHeight: 'calc(100vh - 52px)', background: '#f0f2f5' }}>
-      {/* Hero header */}
-      <div style={{ background: '#0d0d14', borderBottom: '1px solid rgba(232,93,123,0.15)', padding: '2rem' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Image src="/art/avatar.png" alt="Kato.8" width={48} height={48} style={{ imageRendering: 'pixelated' }} />
-            <div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, background: 'linear-gradient(135deg, #e85d7b 0%, #ff8fab 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Projects
-              </h1>
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', margin: 0 }}>
-                {projects.length} project{projects.length !== 1 ? 's' : ''} · Production management for Kato.8 Studios
-              </p>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.625rem' }}>
-            <button
-              onClick={openTicket}
-              style={{ padding: '0.625rem 1.25rem', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.625rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-            >
-              🐛 New Ticket
-            </button>
-            <button
-              onClick={openCreate}
-              style={{ padding: '0.625rem 1.5rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.625rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(232,93,123,0.4)' }}
-            >
-              <span style={{ fontSize: '1.1rem' }}>+</span> New Project
-            </button>
-          </div>
+    <div>
+      {/* Page header */}
+      <div style={{ padding: '1.5rem 2rem 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#172b4d' }}>All Projects</h1>
+          {!loading && (
+            <p style={{ color: '#6b778c', fontSize: '0.8rem', margin: '0.2rem 0 0' }}>
+              {projects.length} project{projects.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={openTicket}
+            style={{ padding: '0.5rem 1rem', background: 'white', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.375rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+          >
+            🐛 New Ticket
+          </button>
+          <button
+            onClick={openCreate}
+            style={{ padding: '0.5rem 1.125rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.375rem', boxShadow: '0 4px 12px rgba(232,93,123,0.35)' }}
+          >
+            <span style={{ fontSize: '1rem', lineHeight: 1 }}>+</span> New Project
+          </button>
         </div>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem' }}>
+      <div style={{ padding: '0 2rem 2rem' }}>
         {/* DB setup warning */}
         {apiError && (
           <div style={{ background: '#fff8f1', border: '1px solid #fed7aa', borderRadius: '0.75rem', padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
@@ -197,7 +191,7 @@ export default function ProjectsPage() {
         ) : projects.length === 0 && !apiError ? (
           /* Empty state */
           <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-            <Image src="/art/avatar.png" alt="Kato" width={80} height={80} style={{ imageRendering: 'pixelated', marginBottom: '1rem', opacity: 0.7 }} />
+            <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.6 }}>📂</div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#172b4d', marginBottom: '0.5rem' }}>No projects yet</h2>
             <p style={{ color: '#6b778c', fontSize: '0.875rem', marginBottom: '1.5rem', maxWidth: 400, margin: '0 auto 1.5rem' }}>
               Create your first project and pick a board type built for your role.
