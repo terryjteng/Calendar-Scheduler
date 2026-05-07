@@ -1,250 +1,500 @@
-'use client'
+﻿'use client'
 
-import { useState, useEffect } from 'react'
-import { useUser, useClerk } from '@clerk/nextjs'
-import AppNav from '@/app/_components/AppNav'
-import Link from 'next/link'
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
-type Project = {
+interface Project {
   id: string
   name: string
   description: string | null
+  game: string | null
+  team: string | null
+  type: string
   color: string
-  status: string
   owner_id: string
-  member_ids: string[]
   created_at: string
 }
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  active:    { bg: 'rgba(124,58,237,0.15)', text: '#a5b4fc' },
-  planning:  { bg: 'rgba(14,165,233,0.15)', text: '#7dd3fc' },
-  paused:    { bg: 'rgba(234,179,8,0.15)',  text: '#fde68a' },
-  completed: { bg: 'rgba(34,197,94,0.15)',  text: '#86efac' },
-}
+const GAMES = ['Corebound', 'Last Light', 'BBCU', 'Studio / General']
+
+const BOARD_TYPES = [
+  {
+    id: 'kanban',
+    label: 'Kanban Board',
+    shortLabel: 'Kanban',
+    emoji: '⬛',
+    desc: 'Columns for each stage — Backlog, To Do, In Progress, Review, Done. Drag tasks across. Best for engineers.',
+    color: '#3b82f6',
+  },
+  {
+    id: 'art_pipeline',
+    label: 'Art Pipeline',
+    shortLabel: 'Art Pipeline',
+    emoji: '🎨',
+    desc: 'Stage-based flow — Concept → Rough Draft → WIP → Review → Final. Built for artists & creative work.',
+    color: '#8b5cf6',
+  },
+  {
+    id: 'standard',
+    label: 'Standard PM',
+    shortLabel: 'Standard PM',
+    emoji: '📋',
+    desc: 'Task list, milestones, and sprint planning. Flexible for any role — designers, producers, sound designers.',
+    color: '#10b981',
+  },
+]
+
+const PROJECT_COLORS = ['#e85d7b', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899']
+
+const TYPE_ICON: Record<string, string> = { bug: '🐛', feature: '✨', improvement: '⬆️', task: '✓' }
 
 export default function ProjectsPage() {
-  const { user, isLoaded } = useUser()
-  const { signOut } = useClerk()
+  const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreate, setShowCreate] = useState(false)
-  const [createName, setCreateName] = useState('')
-  const [createDesc, setCreateDesc] = useState('')
   const [creating, setCreating] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
+
+  // New project form state
+  const [step, setStep] = useState<1 | 2>(1)
+  const [name, setName] = useState('')
+  const [desc, setDesc] = useState('')
+  const [game, setGame] = useState('')
+  const [type, setType] = useState('standard')
+  const [color, setColor] = useState('#e85d7b')
+  const [team, setTeam] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+
+  // Quick ticket state
+  const [creatingTicket, setCreatingTicket] = useState(false)
+  const [tProject, setTProject] = useState('')
+  const [tType, setTType] = useState<'bug' | 'feature' | 'improvement' | 'task'>('bug')
+  const [tTitle, setTTitle] = useState('')
+  const [tPriority, setTPriority] = useState('medium')
+  const [tDesc, setTDesc] = useState('')
+  const [tSubmitting, setTSubmitting] = useState(false)
+  const [tError, setTError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchProjects()
+    fetch('/api/projects')
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) setApiError(d.error)
+        else setProjects(d.projects ?? [])
+        setLoading(false)
+      })
+      .catch(() => { setApiError('Could not connect to database'); setLoading(false) })
   }, [])
 
-  async function fetchProjects() {
+  const openCreate = () => { setCreating(true); setStep(1); setName(''); setDesc(''); setGame(''); setType('standard'); setColor('#e85d7b'); setTeam(''); setFormError(null) }
+  const closeCreate = () => { setCreating(false); setFormError(null) }
+
+  const openTicket = () => { setCreatingTicket(true); setTProject(projects[0]?.id ?? ''); setTType('bug'); setTTitle(''); setTPriority('medium'); setTDesc(''); setTError(null) }
+  const closeTicket = () => { setCreatingTicket(false); setTError(null) }
+
+  const submitTicket = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!tProject) { setTError('Please select a project'); return }
+    if (!tTitle.trim()) { setTError('Title is required'); return }
+    const proj = projects.find(p => p.id === tProject)
+    setTSubmitting(true); setTError(null)
     try {
-      const res = await fetch('/api/projects')
-      const data = await res.json()
-      setProjects(data.projects ?? [])
-    } catch {
-      // ignore
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: tType, game: proj?.game ?? 'Studio / General',
+          title: tTitle.trim(), priority: tPriority,
+          description: tDesc || null, project_id: tProject,
+        }),
+      })
+      if (res.ok) {
+        closeTicket()
+        router.push(`/projects/${tProject}?tab=tickets`)
+      } else {
+        const d = await res.json()
+        setTError(d.error ?? 'Failed to create ticket')
+      }
     } finally {
-      setLoading(false)
+      setTSubmitting(false)
     }
   }
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!createName.trim()) return
-    setCreating(true)
+  const createProject = async () => {
+    if (!name.trim()) { setFormError('Project name is required'); return }
+    if (!game) { setFormError('Please select a game / title'); return }
+    setSubmitting(true); setFormError(null)
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: createName.trim(), description: createDesc.trim() || null }),
+        body: JSON.stringify({ name: name.trim(), description: desc.trim() || null, game: game || null, type, color, team: team || null }),
       })
-      const data = await res.json()
-      if (data.project) {
-        setProjects(prev => [data.project, ...prev])
-        setCreateName('')
-        setCreateDesc('')
-        setShowCreate(false)
+      const d = await res.json()
+      if (!res.ok) {
+        setFormError(d.error ?? 'Failed to create project')
+        return
       }
+      setProjects(prev => [d.project, ...prev])
+      closeCreate()
+      router.push(`/projects/${d.project.id}`)
     } finally {
-      setCreating(false)
+      setSubmitting(false)
     }
   }
 
-  if (!isLoaded) {
-    return (
-      <div className="flex h-screen items-center justify-center" style={{ background: '#111827' }}>
-        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
-      </div>
-    )
-  }
-
-  const role = user?.publicMetadata?.role as string | undefined
-  if (!role) {
-    return (
-      <div className="flex h-screen items-center justify-center" style={{ background: '#111827' }}>
-        <div className="max-w-md w-full mx-4 text-center">
-          <div
-            className="flex items-center justify-center w-16 h-16 rounded-2xl mx-auto mb-6 text-white text-2xl font-bold"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-          >K8</div>
-          <h1 className="text-xl font-semibold mb-2" style={{ color: '#f1f5f9' }}>Access Pending</h1>
-          <p className="text-sm mb-8" style={{ color: '#64748b' }}>A Kato.8 admin will approve your access shortly.</p>
-          <button
-            onClick={() => signOut({ redirectUrl: '/sign-in' })}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-xl transition-all"
-            style={{ color: '#94a3b8', background: '#1e293b', border: '1px solid #2e3a57' }}
-          >Sign out</button>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#0f172a' }}>
-      <AppNav />
-
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-semibold" style={{ color: '#f1f5f9' }}>Projects</h1>
-            <p className="text-sm mt-0.5" style={{ color: '#64748b' }}>
-              {projects.length} project{projects.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-            New Project
-          </button>
-        </div>
-
-        {/* Create project form */}
-        {showCreate && (
-          <form
-            onSubmit={handleCreate}
-            className="mb-6 p-5 rounded-xl"
-            style={{ background: '#1e293b', border: '1px solid #2e3a57' }}
-          >
-            <h3 className="text-sm font-semibold mb-3" style={{ color: '#e2e8f0' }}>New Project</h3>
-            <div className="flex gap-3 items-start">
-              <input
-                autoFocus
-                type="text"
-                placeholder="Project name"
-                value={createName}
-                onChange={e => setCreateName(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm rounded-lg outline-none"
-                style={{
-                  background: '#0f172a', border: '1px solid #334155',
-                  color: '#e2e8f0',
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Description (optional)"
-                value={createDesc}
-                onChange={e => setCreateDesc(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm rounded-lg outline-none"
-                style={{
-                  background: '#0f172a', border: '1px solid #334155',
-                  color: '#e2e8f0',
-                }}
-              />
-              <button
-                type="submit"
-                disabled={creating || !createName.trim()}
-                className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-              >
-                {creating ? 'Creating…' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowCreate(false); setCreateName(''); setCreateDesc('') }}
-                className="px-3 py-2 text-sm rounded-lg transition-all"
-                style={{ color: '#64748b', border: '1px solid #2e3a57' }}
-              >
-                Cancel
-              </button>
+    <div style={{ minHeight: 'calc(100vh - 52px)', background: '#f0f2f5' }}>
+      {/* Hero header */}
+      <div style={{ background: '#0d0d14', borderBottom: '1px solid rgba(232,93,123,0.15)', padding: '2rem' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <Image src="/art/avatar.png" alt="Kato.8" width={48} height={48} style={{ imageRendering: 'pixelated' }} />
+            <div>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, background: 'linear-gradient(135deg, #e85d7b 0%, #ff8fab 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Projects
+              </h1>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', margin: 0 }}>
+                {projects.length} project{projects.length !== 1 ? 's' : ''} · Production management for Kato.8 Studios
+              </p>
             </div>
-          </form>
+          </div>
+          <div style={{ display: 'flex', gap: '0.625rem' }}>
+            <button
+              onClick={openTicket}
+              style={{ padding: '0.625rem 1.25rem', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.625rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              🐛 New Ticket
+            </button>
+            <button
+              onClick={openCreate}
+              style={{ padding: '0.625rem 1.5rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.625rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(232,93,123,0.4)' }}
+            >
+              <span style={{ fontSize: '1.1rem' }}>+</span> New Project
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem' }}>
+        {/* DB setup warning */}
+        {apiError && (
+          <div style={{ background: '#fff8f1', border: '1px solid #fed7aa', borderRadius: '0.75rem', padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>⚠️</span>
+            <div>
+              <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Database not set up</div>
+              <div style={{ color: '#b45309', fontSize: '0.82rem' }}>
+                Run <code style={{ background: '#fef3c7', padding: '1px 5px', borderRadius: '3px', fontFamily: 'monospace' }}>supabase/migrations/002_projects_and_teams.sql</code> in your Supabase SQL editor to create the projects tables.
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* Project grid */}
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
-          </div>
-        ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-              style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)' }}
-            >
-              <svg className="w-8 h-8" style={{ color: '#a5b4fc' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-            <p className="text-sm font-medium mb-1" style={{ color: '#94a3b8' }}>No projects yet</p>
-            <p className="text-xs" style={{ color: '#475569' }}>Create your first project to get started</p>
+          <div style={{ textAlign: 'center', padding: '4rem', color: '#6b778c', fontSize: '0.875rem' }}>Loading…</div>
+        ) : projects.length === 0 && !apiError ? (
+          /* Empty state */
+          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+            <Image src="/art/avatar.png" alt="Kato" width={80} height={80} style={{ imageRendering: 'pixelated', marginBottom: '1rem', opacity: 0.7 }} />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#172b4d', marginBottom: '0.5rem' }}>No projects yet</h2>
+            <p style={{ color: '#6b778c', fontSize: '0.875rem', marginBottom: '1.5rem', maxWidth: 400, margin: '0 auto 1.5rem' }}>
+              Create your first project and pick a board type built for your role.
+            </p>
+            <button onClick={openCreate} style={{ padding: '0.625rem 1.5rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.625rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(232,93,123,0.3)' }}>
+              Create your first project
+            </button>
           </div>
         ) : (
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-            {projects.map(project => {
-              const sc = STATUS_COLORS[project.status] ?? STATUS_COLORS.active
-              return (
-                <Link
-                  key={project.id}
-                  href={`/projects/${project.id}`}
-                  className="block rounded-xl p-5 transition-all hover:translate-y-[-2px]"
-                  style={{
-                    background: '#1e293b',
-                    border: '1px solid #2e3a57',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                      style={{ background: project.color || 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-                    >
-                      {project.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <span
-                      className="text-xs font-medium px-2 py-1 rounded-full"
-                      style={{ background: sc.bg, color: sc.text }}
-                    >
-                      {project.status}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-semibold mb-1 truncate" style={{ color: '#e2e8f0' }}>
-                    {project.name}
-                  </h3>
-                  {project.description && (
-                    <p className="text-xs line-clamp-2" style={{ color: '#64748b' }}>
-                      {project.description}
-                    </p>
-                  )}
-                  <div className="mt-3 flex items-center gap-1.5" style={{ color: '#475569' }}>
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="text-xs">{(project.member_ids?.length ?? 0) + 1} member{(project.member_ids?.length ?? 0) !== 0 ? 's' : ''}</span>
-                  </div>
-                </Link>
-              )
-            })}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+            {projects.map(p => (
+              <ProjectCard
+                key={p.id}
+                project={p}
+                onClick={() => router.push(`/projects/${p.id}`)}
+                onDelete={async () => {
+                  if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return
+                  const res = await fetch(`/api/projects/${p.id}`, { method: 'DELETE' })
+                  if (res.ok) setProjects(prev => prev.filter(x => x.id !== p.id))
+                }}
+              />
+            ))}
           </div>
         )}
+      </div>
+
+      {/* Quick create ticket modal */}
+      {creatingTicket && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400, padding: '1rem' }}>
+          <div style={{ background: 'white', borderRadius: '1rem', width: '100%', maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+            <div style={{ background: '#0d0d14', padding: '1.125rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ color: 'white', fontWeight: 800, fontSize: '1rem', margin: 0 }}>New Ticket</h2>
+              <button onClick={closeTicket} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', fontSize: '1.3rem', lineHeight: 1 }}>×</button>
+            </div>
+            {projects.length === 0 ? (
+              <div style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📂</div>
+                <p style={{ fontWeight: 700, color: '#172b4d', marginBottom: '0.375rem' }}>No projects yet</p>
+                <p style={{ color: '#6b778c', fontSize: '0.875rem', marginBottom: '1.25rem' }}>Create a project first, then you can add tickets to it.</p>
+                <button onClick={() => { closeTicket(); openCreate() }} style={{ ...pinkBtn }}>Create a Project</button>
+              </div>
+            ) : (
+              <form onSubmit={submitTicket} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                <label style={lbl}>
+                  Project *
+                  <select value={tProject} onChange={e => setTProject(e.target.value)} style={inp}>
+                    <option value="">— Select a project —</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}{p.game ? ` (${p.game})` : ''}</option>)}
+                  </select>
+                </label>
+                <div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: '0.375rem' }}>Type</div>
+                  <div style={{ display: 'flex', gap: '0.375rem' }}>
+                    {(['bug', 'feature', 'improvement', 'task'] as const).map(t => (
+                      <button key={t} type="button" onClick={() => setTType(t)}
+                        style={{ flex: 1, padding: '0.45rem 0.25rem', border: `2px solid ${tType === t ? '#e85d7b' : '#e2e8f0'}`, borderRadius: '0.375rem', background: tType === t ? '#e85d7b12' : 'white', color: tType === t ? '#e85d7b' : '#6b778c', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {TYPE_ICON[t]} {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label style={lbl}>
+                  Priority
+                  <select value={tPriority} onChange={e => setTPriority(e.target.value)} style={inp}>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+                <label style={lbl}>
+                  Title *
+                  <input autoFocus required value={tTitle} onChange={e => setTTitle(e.target.value)} placeholder="Describe the issue or feature…" style={inp} />
+                </label>
+                <label style={lbl}>
+                  Description
+                  <textarea value={tDesc} onChange={e => setTDesc(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' }} placeholder="Optional details…" />
+                </label>
+                {tError && <p style={{ color: '#ef4444', fontSize: '0.82rem', margin: 0 }}>{tError}</p>}
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
+                  <button type="button" onClick={closeTicket} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', color: '#475569', fontFamily: 'inherit' }}>Cancel</button>
+                  <button type="submit" disabled={tSubmitting} style={{ ...pinkBtn, opacity: tSubmitting ? 0.7 : 1 }}>{tSubmitting ? 'Creating…' : 'Create Ticket'}</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Create project modal */}
+      {creating && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400, padding: '1rem' }}>
+          <div style={{ background: 'white', borderRadius: '1rem', width: '100%', maxWidth: 560, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+            {/* Modal header */}
+            <div style={{ background: '#0d0d14', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h2 style={{ color: 'white', fontWeight: 800, fontSize: '1.05rem', margin: 0 }}>
+                  {step === 1 ? 'Create a project' : 'Choose your board type'}
+                </h2>
+                <div style={{ display: 'flex', gap: '0.375rem', marginTop: '0.5rem' }}>
+                  {[1, 2].map(s => (
+                    <div key={s} style={{ height: 3, width: 32, borderRadius: '999px', background: step >= s ? '#e85d7b' : 'rgba(255,255,255,0.15)', transition: 'background 0.2s' }} />
+                  ))}
+                </div>
+              </div>
+              <button onClick={closeCreate} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', fontSize: '1.3rem', lineHeight: 1 }}>×</button>
+            </div>
+
+            <div style={{ padding: '1.5rem' }}>
+              {step === 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+                  <label style={lbl}>
+                    Project name *
+                    <input
+                      autoFocus
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && name.trim() && setStep(2)}
+                      placeholder="e.g. Season 2 Art Assets"
+                      style={inp}
+                    />
+                  </label>
+                  <label style={lbl}>
+                    Game / Title *
+                    <select value={game} onChange={e => setGame(e.target.value)} style={{ ...inp, color: game ? '#172b4d' : '#94a3b8' }}>
+                      <option value="">— Select a game —</option>
+                      {GAMES.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </label>
+                  <label style={lbl}>
+                    Description
+                    <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What is this project about?" style={inp} />
+                  </label>
+                  <label style={lbl}>
+                    Department (optional)
+                    <select value={team} onChange={e => setTeam(e.target.value)} style={inp}>
+                      <option value="">— No department —</option>
+                      {['Engineering', 'Development', 'Art', 'Sound', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </label>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: '0.5rem' }}>Project color</div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {PROJECT_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setColor(c)}
+                          style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: color === c ? '3px solid white' : '3px solid transparent', boxShadow: color === c ? `0 0 0 2px ${c}` : 'none', cursor: 'pointer', transition: 'all 0.1s', padding: 0 }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {formError && <p style={{ color: '#ef4444', fontSize: '0.82rem', margin: 0 }}>{formError}</p>}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
+                    <button onClick={() => { if (!name.trim()) { setFormError('Project name is required'); return }; if (!game) { setFormError('Please select a game / title'); return }; setFormError(null); setStep(2) }} style={pinkBtn}>
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <p style={{ color: '#6b778c', fontSize: '0.82rem', margin: 0 }}>
+                    Choose how you want to organize work. You can always switch later.
+                  </p>
+                  {BOARD_TYPES.map(bt => (
+                    <label
+                      key={bt.id}
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '1rem', cursor: 'pointer',
+                        padding: '0.875rem 1rem', borderRadius: '0.75rem',
+                        border: type === bt.id ? `2px solid ${bt.color}` : '2px solid #e2e8f0',
+                        background: type === bt.id ? bt.color + '0a' : 'white',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <input type="radio" name="bt" value={bt.id} checked={type === bt.id} onChange={() => setType(bt.id)} style={{ accentColor: bt.color, marginTop: '3px', flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '1rem' }}>{bt.emoji}</span>
+                          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#172b4d' }}>{bt.label}</span>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: bt.color, background: bt.color + '18', padding: '1px 6px', borderRadius: '3px' }}>
+                            {bt.id === 'kanban' ? 'Engineers' : bt.id === 'art_pipeline' ? 'Artists' : 'All roles'}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.78rem', color: '#6b778c', margin: 0, lineHeight: 1.4 }}>{bt.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+
+                  {formError && <p style={{ color: '#ef4444', fontSize: '0.82rem', margin: 0 }}>{formError}</p>}
+
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', paddingTop: '0.5rem' }}>
+                    <button onClick={() => setStep(1)} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', color: '#475569', fontFamily: 'inherit' }}>
+                      ← Back
+                    </button>
+                    <button
+                      onClick={createProject}
+                      disabled={submitting}
+                      style={{ ...pinkBtn, opacity: submitting ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                    >
+                      {submitting ? 'Creating…' : `Create ${BOARD_TYPES.find(b => b.id === type)?.shortLabel ?? 'Project'} →`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProjectCard({ project, onClick, onDelete }: { project: Project; onClick: () => void; onDelete: () => void }) {
+  const [hov, setHov] = useState(false)
+  const bt = BOARD_TYPES.find(b => b.id === project.type)
+  const col = project.color ?? '#e85d7b'
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: 'white',
+        borderRadius: '0.875rem',
+        border: `2px solid ${hov ? col : '#e2e8f0'}`,
+        padding: 0,
+        cursor: 'pointer',
+        boxShadow: hov ? `0 8px 24px ${col}20` : '0 1px 3px rgba(0,0,0,0.06)',
+        transform: hov ? 'translateY(-2px)' : 'none',
+        transition: 'all 0.15s',
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      {/* Color band */}
+      <div style={{ height: 6, background: `linear-gradient(90deg, ${col}, ${col}88)` }} />
+
+      {/* Delete button */}
+      <button
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        title="Delete project"
+        style={{
+          position: 'absolute', top: 14, right: 10,
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: '#cbd5e1', fontSize: '1rem', lineHeight: 1, padding: '2px 4px',
+          borderRadius: '4px', transition: 'color 0.1s',
+          zIndex: 1,
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#cbd5e1')}
+      >
+        🗑
+      </button>
+
+      <div style={{ padding: '1.125rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.625rem' }}>
+          <div style={{ width: 36, height: 36, borderRadius: '0.5rem', background: col + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
+            {bt?.emoji ?? '📋'}
+          </div>
+          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: bt ? '#6b778c' : '#94a3b8', background: '#f1f5f9', padding: '2px 7px', borderRadius: '999px', alignSelf: 'flex-start', marginRight: '1.5rem' }}>
+            {bt?.shortLabel ?? project.type}
+          </span>
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#172b4d', marginBottom: '0.375rem', lineHeight: 1.3 }}>
+          {project.name}
+        </div>
+        {project.description && (
+          <p style={{ fontSize: '0.78rem', color: '#6b778c', margin: '0 0 0.625rem', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {project.description}
+          </p>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {project.game && (
+            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: col, background: col + '12', padding: '2px 7px', borderRadius: '4px' }}>
+              🎮 {project.game}
+            </span>
+          )}
+          {project.team && (
+            <span style={{ fontSize: '0.68rem', color: '#6b778c', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{project.team}</span>
+          )}
+          <span style={{ fontSize: '0.68rem', color: '#94a3b8', marginLeft: 'auto' }}>
+            {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
+        </div>
       </div>
     </div>
   )
 }
+
+const lbl: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.82rem', fontWeight: 700, color: '#374151' }
+const inp: React.CSSProperties = { padding: '0.625rem 0.875rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.875rem', fontFamily: 'inherit', color: '#172b4d', outline: 'none', width: '100%', boxSizing: 'border-box' }
+const pinkBtn: React.CSSProperties = { padding: '0.5rem 1.25rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(232,93,123,0.3)' }
+
