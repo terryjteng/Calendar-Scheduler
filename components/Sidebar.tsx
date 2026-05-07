@@ -150,7 +150,7 @@ export default function Sidebar({ activeProject, onProjectChange, activeView, on
           </li>
           <li>
             <a
-              href="https://hr-tool-blush.vercel.app"
+              href="https://hr.kato8studiosapp.xyz"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-[#232d47] hover:text-slate-300 transition-all"
@@ -164,7 +164,7 @@ export default function Sidebar({ activeProject, onProjectChange, activeView, on
           </li>
           <li>
             <a
-              href="https://social-media-dash-three.vercel.app"
+              href="https://social.kato8studiosapp.xyz"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-[#232d47] hover:text-slate-300 transition-all"
