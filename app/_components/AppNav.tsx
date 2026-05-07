@@ -2,8 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import Image from 'next/image'
-
 export default function AppNav() {
   const pathname = usePathname()
   const onProjects  = pathname.startsWith('/projects')
@@ -26,13 +24,7 @@ export default function AppNav() {
     }}>
       {/* Brand */}
       <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', marginRight: '1.5rem' }}>
-        <Image
-          src="/art/avatar.png"
-          alt="Kato.8"
-          width={28}
-          height={28}
-          style={{ imageRendering: 'pixelated' }}
-        />
+        <div style={{ width: 28, height: 28, borderRadius: '6px', background: 'linear-gradient(135deg, #e85d7b, #ff8fab)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, color: 'white' }}>K8</div>
         <span style={{
           fontWeight: 800,
           fontSize: '0.95rem',
