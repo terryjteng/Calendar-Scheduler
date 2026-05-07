@@ -2,12 +2,9 @@
 
 import { useUser } from '@clerk/nextjs'
 import Link from 'next/link'
-import { PROJECTS } from '@/lib/seedData'
-import { ProjectId, TabId } from '@/lib/types'
+import { TabId } from '@/lib/types'
 
 interface SidebarProps {
-  activeProject: ProjectId
-  onProjectChange: (id: ProjectId) => void
   activeView: TabId
   onViewChange: (view: TabId) => void
 }
@@ -23,15 +20,6 @@ const VIEWS: { id: TabId; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: 'tasks',
-    label: 'Tasks',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
-  },
-  {
     id: 'team',
     label: 'Team Schedule',
     icon: (
@@ -42,7 +30,7 @@ const VIEWS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   },
 ]
 
-export default function Sidebar({ activeProject, onProjectChange, activeView, onViewChange }: SidebarProps) {
+export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const { user } = useUser()
 
   return (
@@ -50,25 +38,9 @@ export default function Sidebar({ activeProject, onProjectChange, activeView, on
       className="flex flex-col h-screen bg-[#1a2035] text-slate-300 select-none"
       style={{ width: '220px', minWidth: '220px', borderRight: '1px solid #2e3a57' }}
     >
-      {/* Logo */}
-      <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid #2e3a57' }}>
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex items-center justify-center rounded-lg text-white font-bold text-sm"
-            style={{ width: '32px', height: '32px', background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-          >
-            K8
-          </div>
-          <div>
-            <div className="text-white font-semibold text-sm leading-tight">Kato.8 Studios</div>
-            <div className="text-slate-500 text-xs">Scheduler</div>
-          </div>
-        </div>
-      </div>
-
-      <nav className="flex-1 px-2 overflow-y-auto sidebar-scroll">
-        {/* Views section */}
-        <div className="pt-4 pb-1.5 px-3">
+      {/* Views */}
+      <nav className="flex-1 px-2 overflow-y-auto sidebar-scroll pt-2">
+        <div className="pt-3 pb-1.5 px-3">
           <span className="text-xs font-semibold tracking-widest text-slate-500 uppercase">Views</span>
         </div>
         <ul className="space-y-0.5 mb-2">
@@ -93,42 +65,6 @@ export default function Sidebar({ activeProject, onProjectChange, activeView, on
             )
           })}
         </ul>
-
-        {/* Projects section */}
-        <div className="mt-4 mb-1.5 px-3" style={{ borderTop: '1px solid #2e3a57', paddingTop: '16px' }}>
-          <span className="text-xs font-semibold tracking-widest text-slate-500 uppercase">Projects</span>
-        </div>
-        <ul className="space-y-0.5 mb-2">
-          {PROJECTS.map((project) => {
-            const isActive = project.id === activeProject
-            return (
-              <li key={project.id}>
-                <button
-                  onClick={() => onProjectChange(project.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all text-sm ${
-                    isActive
-                      ? 'bg-[#2a3454] text-white'
-                      : 'text-slate-400 hover:bg-[#232d47] hover:text-slate-200'
-                  }`}
-                >
-                  <span
-                    className="flex-shrink-0 w-2 h-2 rounded-full"
-                    style={{ backgroundColor: isActive ? project.color : '#475569' }}
-                  />
-                  <span className="flex-1 min-w-0 truncate font-medium">{project.name}</span>
-                  <span
-                    className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                      isActive ? 'bg-white/10 text-slate-300' : 'bg-slate-700 text-slate-500'
-                    }`}
-                  >
-                    {project.memberCount}
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-
       </nav>
 
       {/* User profile */}

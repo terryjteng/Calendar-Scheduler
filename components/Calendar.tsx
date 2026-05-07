@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { CALENDAR_EVENTS, PROJECTS } from '@/lib/seedData'
 import { ProjectId, CalendarEvent, EventType } from '@/lib/types'
 import AddEventModal from './AddEventModal'
 
@@ -177,8 +176,6 @@ export default function Calendar({ projectId }: CalendarProps) {
   const [addModalDate, setAddModalDate]   = useState(formatDate(new Date()))
   const [userEvents, setUserEvents]       = useState<CalendarEvent[]>([])
 
-  const project = PROJECTS.find(p => p.id === projectId)!
-
   // Load user-created events from localStorage
   useEffect(() => {
     try {
@@ -201,19 +198,14 @@ export default function Calendar({ projectId }: CalendarProps) {
   const weekDateStrs   = weekDates.map(formatDate)
   const today          = formatDate(new Date())
 
-  // Merge seed + user events for this project
   const eventsByDate = useMemo(() => {
-    const all = [
-      ...CALENDAR_EVENTS.filter(e => e.projectId === projectId),
-      ...userEvents.filter(e => e.projectId === projectId),
-    ]
     const map: Record<string, CalendarEvent[]> = {}
-    for (const ev of all) {
+    for (const ev of userEvents) {
       if (!map[ev.date]) map[ev.date] = []
       map[ev.date].push(ev)
     }
     return map
-  }, [projectId, userEvents])
+  }, [userEvents])
 
   const HOUR_HEIGHT    = 60
   const GRID_START_HOUR = 8

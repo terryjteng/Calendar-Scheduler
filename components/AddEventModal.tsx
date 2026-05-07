@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getProjectMembers } from '@/lib/seedData'
 import {
   ProjectId, CalendarEvent, EventType,
   RecurrenceFrequency, RecurrenceRule, RecurrenceIntervalUnit, RecurrenceEndType,
 } from '@/lib/types'
+
+type ApiMember = { user_id: string; display_name: string; role: string }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -132,7 +133,11 @@ interface AddEventModalProps {
 // ─── main modal ───────────────────────────────────────────────────────────────
 
 export default function AddEventModal({ projectId, defaultDate, onSave, onClose }: AddEventModalProps) {
-  const members = getProjectMembers(projectId)
+  const [members, setMembers] = useState<ApiMember[]>([])
+
+  useEffect(() => {
+    fetch('/api/members').then(r => r.json()).then(d => setMembers(d.members ?? []))
+  }, [])
 
   const [title, setTitle]                 = useState('')
   const [type, setType]                   = useState<EventType>('sync')
@@ -310,11 +315,11 @@ export default function AddEventModal({ projectId, defaultDate, onSave, onClose 
             </label>
             <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
               {members.map(m => {
-                const on = attendees.includes(m.name)
+                const on = attendees.includes(m.display_name)
                 return (
                   <button
-                    key={m.id}
-                    onClick={() => toggleAttendee(m.name)}
+                    key={m.user_id}
+                    onClick={() => toggleAttendee(m.display_name)}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
                       on
                         ? 'bg-violet-600 text-white border-violet-600'
@@ -322,9 +327,9 @@ export default function AddEventModal({ projectId, defaultDate, onSave, onClose 
                     }`}
                   >
                     <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${on ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
-                      {m.initials[0]}
+                      {m.display_name[0]}
                     </span>
-                    {m.name.split(' ')[0]}
+                    {m.display_name.split(' ')[0]}
                   </button>
                 )
               })}

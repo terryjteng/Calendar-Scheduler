@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
+import FloatingTaskPanel from './_components/FloatingTaskPanel'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -22,7 +23,10 @@ export default function RootLayout({
       dynamic
     >
       <html lang="en">
-        <body>{children}</body>
+        <body>
+          {children}
+          <FloatingTaskPanel />
+        </body>
       </html>
     </ClerkProvider>
   )
