@@ -15,7 +15,10 @@ export default function RootLayout({
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      clerkJSUrl="https://unpkg.com/@clerk/clerk-js@5/dist/clerk.browser.js"
       afterSignOutUrl="/sign-in"
+      afterSignInUrl="/dashboard"
+      afterSignUpUrl="/dashboard"
       dynamic
     >
       <html lang="en">
