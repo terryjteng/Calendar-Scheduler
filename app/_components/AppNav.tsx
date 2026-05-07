@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import Image from 'next/image'
+
 export default function AppNav() {
   const pathname = usePathname()
   const onProjects  = pathname.startsWith('/projects')
@@ -23,8 +25,14 @@ export default function AppNav() {
       zIndex: 200,
     }}>
       {/* Brand */}
-      <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', marginRight: '1.5rem' }}>
-        <div style={{ width: 28, height: 28, borderRadius: '6px', background: 'linear-gradient(135deg, #e85d7b, #ff8fab)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, color: 'white' }}>K8</div>
+      <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textDecoration: 'none', marginRight: '1.5rem' }}>
+        <Image
+          src="/kato8-icon.png"
+          alt="Kato.8"
+          width={32}
+          height={32}
+          style={{ borderRadius: '6px', objectFit: 'contain' }}
+        />
         <span style={{
           fontWeight: 800,
           fontSize: '0.95rem',
