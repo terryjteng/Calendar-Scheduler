@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { UserButton } from '@clerk/nextjs'
 
 const GridIcon = () => (
@@ -69,6 +70,15 @@ const WORK_NAV = [
 
 export default function Sidebar({ displayName, isAdmin }: { displayName: string; isAdmin: boolean }) {
   const pathname = usePathname()
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    if (!isAdmin) return
+    fetch('/api/admin/pending-count')
+      .then(r => r.ok ? r.json() : { count: 0 })
+      .then(d => setPendingCount(d.count ?? 0))
+      .catch(() => {})
+  }, [isAdmin])
 
   return (
     <aside style={{
@@ -117,6 +127,7 @@ export default function Sidebar({ displayName, isAdmin }: { displayName: string;
               label="Users"
               Icon={UsersIcon}
               active={pathname.startsWith('/dashboard/admin/users')}
+              badge={pendingCount}
             />
             <NavLink
               href="/settings"
@@ -139,7 +150,7 @@ export default function Sidebar({ displayName, isAdmin }: { displayName: string;
   )
 }
 
-function NavLink({ href, label, Icon, active }: { href: string; label: string; Icon: () => React.JSX.Element; active: boolean }) {
+function NavLink({ href, label, Icon, active, badge }: { href: string; label: string; Icon: () => React.JSX.Element; active: boolean; badge?: number }) {
   return (
     <Link
       href={href}
@@ -155,7 +166,17 @@ function NavLink({ href, label, Icon, active }: { href: string; label: string; I
       <span style={{ color: active ? '#a5b4fc' : 'rgba(255,255,255,0.32)', flexShrink: 0 }}>
         <Icon />
       </span>
-      {label}
+      <span style={{ flex: 1 }}>{label}</span>
+      {badge != null && badge > 0 && (
+        <span style={{
+          background: '#e85d7b', color: 'white',
+          borderRadius: '999px', fontSize: '0.6rem', fontWeight: 800,
+          padding: '1px 6px', minWidth: 16, textAlign: 'center',
+          lineHeight: '1.4',
+        }}>
+          {badge}
+        </span>
+      )}
     </Link>
   )
 }

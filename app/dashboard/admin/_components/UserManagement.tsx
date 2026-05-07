@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
@@ -16,6 +16,14 @@ type User = {
   role: string | null
   isTeamLead: boolean
 }
+
+type ConfirmStep = 'select' | 'grant_needed' | 'updating' | 'success'
+
+const ROLES = [
+  { value: 'member',    label: 'Member',    color: '#6366f1' },
+  { value: 'team_lead', label: 'Team Lead', color: '#f59e0b' },
+  { value: 'admin',     label: 'Admin',     color: '#e85d7b' },
+]
 
 function fmtDate(ts: number | null) {
   if (!ts) return '—'
@@ -39,6 +47,11 @@ export default function UserManagement() {
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
 
+  // Role assignment state (resets when expanded changes)
+  const [selectedRole, setSelectedRole] = useState('member')
+  const [confirmStep, setConfirmStep] = useState<ConfirmStep>('select')
+  const [confirmedRole, setConfirmedRole] = useState('')
+
   useEffect(() => {
     fetch('/api/admin/users')
       .then(r => r.json())
@@ -46,7 +59,49 @@ export default function UserManagement() {
       .catch(() => setLoading(false))
   }, [])
 
-  const filtered = users.filter(u => {
+  // Reset role state when a different user is expanded
+  useEffect(() => {
+    setSelectedRole('member')
+    setConfirmStep('select')
+    setConfirmedRole('')
+  }, [expanded])
+
+  const handleConfirm = async (user: User) => {
+    setConfirmedRole(selectedRole)
+    if (!user.role) {
+      // No access yet — show Grant Access button
+      setConfirmStep('grant_needed')
+    } else {
+      // Already has access — update role directly
+      setConfirmStep('updating')
+      await applyRole(user.id, selectedRole)
+      setConfirmStep('success')
+    }
+  }
+
+  const handleGrantAccess = async (userId: string) => {
+    setConfirmStep('updating')
+    await applyRole(userId, confirmedRole)
+    setConfirmStep('success')
+  }
+
+  const applyRole = async (userId: string, role: string) => {
+    await fetch(`/api/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    })
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u))
+  }
+
+  // Sort: pending (no role) first, then by last sign-in
+  const sorted = [...users].sort((a, b) => {
+    if (!a.role && b.role) return -1
+    if (a.role && !b.role) return 1
+    return (b.lastSignInAt ?? 0) - (a.lastSignInAt ?? 0)
+  })
+
+  const filtered = sorted.filter(u => {
     if (!search) return true
     const q = search.toLowerCase()
     return (
@@ -59,6 +114,8 @@ export default function UserManagement() {
     )
   })
 
+  const pendingCount = users.filter(u => !u.role).length
+
   if (loading) return <p style={{ color: '#64748b' }}>Loading users…</p>
 
   return (
@@ -67,11 +124,16 @@ export default function UserManagement() {
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         {[
           { label: 'Total accounts', value: users.length },
-          { label: 'With profiles', value: users.filter(u => u.displayName || u.team).length },
+          { label: 'Active members', value: users.filter(u => u.role).length },
+          { label: 'Pending access', value: pendingCount, highlight: pendingCount > 0 },
           { label: 'Team leads', value: users.filter(u => u.isTeamLead).length },
         ].map(s => (
-          <div key={s.label} style={{ background: 'white', borderRadius: '0.75rem', padding: '0.875rem 1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', minWidth: 120 }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1e293b' }}>{s.value}</div>
+          <div key={s.label} style={{
+            background: 'white', borderRadius: '0.75rem', padding: '0.875rem 1.25rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)', minWidth: 110,
+            borderLeft: s.highlight ? '3px solid #e85d7b' : '3px solid transparent',
+          }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.highlight ? '#e85d7b' : '#1e293b' }}>{s.value}</div>
             <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>{s.label}</div>
           </div>
         ))}
@@ -95,6 +157,11 @@ export default function UserManagement() {
           <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1e293b' }}>
             {filtered.length} {filtered.length === 1 ? 'user' : 'users'}
           </span>
+          {pendingCount > 0 && (
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#e85d7b', background: '#fdf2f5', padding: '3px 10px', borderRadius: '999px', border: '1px solid rgba(232,93,123,0.25)' }}>
+              {pendingCount} awaiting access
+            </span>
+          )}
         </div>
 
         {filtered.length === 0 ? (
@@ -103,6 +170,7 @@ export default function UserManagement() {
           filtered.map((u, i) => {
             const name = u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || 'Unknown'
             const isOpen = expanded === u.id
+            const isPending = !u.role
 
             return (
               <div key={u.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
@@ -112,8 +180,9 @@ export default function UserManagement() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: '0.875rem',
                     padding: '0.875rem 1.25rem', cursor: 'pointer',
+                    background: isOpen ? '#f8fafc' : isPending ? 'rgba(232,93,123,0.02)' : 'transparent',
+                    borderLeft: isPending ? '3px solid #e85d7b' : '3px solid transparent',
                     transition: 'background 0.1s',
-                    background: isOpen ? '#f8fafc' : 'transparent',
                   }}
                 >
                   {/* Avatar */}
@@ -146,14 +215,26 @@ export default function UserManagement() {
                     </div>
                   </div>
 
+                  {/* Status / role badge */}
+                  {isPending ? (
+                    <span style={{ flexShrink: 0, background: '#fdf2f5', color: '#e85d7b', borderRadius: '999px', padding: '2px 9px', fontSize: '0.7rem', fontWeight: 700, border: '1px solid rgba(232,93,123,0.3)' }}>
+                      Pending
+                    </span>
+                  ) : u.role ? (
+                    <span style={{
+                      flexShrink: 0,
+                      background: (ROLES.find(r => r.value === u.role)?.color ?? '#6366f1') + '18',
+                      color: ROLES.find(r => r.value === u.role)?.color ?? '#6366f1',
+                      borderRadius: '999px', padding: '2px 9px', fontSize: '0.7rem', fontWeight: 600,
+                    }}>
+                      {ROLES.find(r => r.value === u.role)?.label ?? u.role}
+                    </span>
+                  ) : null}
+
                   {/* Team badge */}
-                  {u.team ? (
+                  {u.team && (
                     <span style={{ flexShrink: 0, background: '#ede9fe', color: '#6d28d9', borderRadius: '999px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600 }}>
                       {u.team}
-                    </span>
-                  ) : (
-                    <span style={{ flexShrink: 0, background: '#f1f5f9', color: '#94a3b8', borderRadius: '999px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600 }}>
-                      No team
                     </span>
                   )}
 
@@ -173,19 +254,95 @@ export default function UserManagement() {
 
                 {/* Expanded detail */}
                 {isOpen && (
-                  <div style={{ padding: '0.75rem 1.25rem 1rem 4.25rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-                    {[
-                      { label: 'Clerk ID', value: u.id },
-                      { label: 'Role', value: u.role || '—' },
-                      { label: 'Team Lead', value: u.isTeamLead ? 'Yes ⭐' : 'No' },
-                      { label: 'Joined', value: fmtDate(u.createdAt) },
-                      { label: 'Last sign-in', value: fmtDate(u.lastSignInAt) },
-                    ].map(f => (
-                      <div key={f.label}>
-                        <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{f.label}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#1e293b', fontFamily: f.label === 'Clerk ID' ? 'monospace' : 'inherit', wordBreak: 'break-all' }}>{f.value}</div>
+                  <div style={{ padding: '1rem 1.25rem 1.125rem', paddingLeft: '4.25rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                    {/* Info fields */}
+                    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                      {[
+                        { label: 'Clerk ID', value: u.id },
+                        { label: 'Team Lead', value: u.isTeamLead ? 'Yes ⭐' : 'No' },
+                        { label: 'Joined', value: fmtDate(u.createdAt) },
+                        { label: 'Last sign-in', value: fmtDate(u.lastSignInAt) },
+                      ].map(f => (
+                        <div key={f.label}>
+                          <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{f.label}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#1e293b', fontFamily: f.label === 'Clerk ID' ? 'monospace' : 'inherit', wordBreak: 'break-all' }}>{f.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Role assignment */}
+                    <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.875rem' }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.625rem' }}>
+                        Role Assignment
                       </div>
-                    ))}
+
+                      {confirmStep === 'select' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+                          <select
+                            value={selectedRole}
+                            onChange={e => setSelectedRole(e.target.value)}
+                            style={{
+                              padding: '0.4rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem',
+                              fontSize: '0.82rem', fontFamily: 'inherit', color: '#1e293b',
+                              background: 'white', outline: 'none', cursor: 'pointer',
+                            }}
+                          >
+                            {ROLES.map(r => (
+                              <option key={r.value} value={r.value}>{r.label}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleConfirm(u)}
+                            style={{ padding: '0.4rem 1rem', background: '#1e293b', color: 'white', border: 'none', borderRadius: '0.375rem', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            Confirm
+                          </button>
+                          {u.role && (
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                              Current: <strong style={{ color: ROLES.find(r => r.value === u.role)?.color ?? '#1e293b' }}>{ROLES.find(r => r.value === u.role)?.label ?? u.role}</strong>
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {confirmStep === 'grant_needed' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.82rem', color: '#475569' }}>
+                            Grant as <strong style={{ color: ROLES.find(r => r.value === confirmedRole)?.color ?? '#1e293b' }}>{ROLES.find(r => r.value === confirmedRole)?.label ?? confirmedRole}</strong>?
+                          </span>
+                          <button
+                            onClick={() => handleGrantAccess(u.id)}
+                            style={{ padding: '0.4rem 1.125rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.375rem', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(232,93,123,0.35)' }}
+                          >
+                            Grant Access
+                          </button>
+                          <button
+                            onClick={() => setConfirmStep('select')}
+                            style={{ padding: '0.4rem 0.75rem', background: 'white', border: '1px solid #e2e8f0', color: '#64748b', borderRadius: '0.375rem', fontWeight: 500, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+
+                      {confirmStep === 'updating' && (
+                        <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Updating…</span>
+                      )}
+
+                      {confirmStep === 'success' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                          <span style={{ fontSize: '0.82rem', color: '#16a34a', fontWeight: 600 }}>
+                            ✓ Role set to <strong>{ROLES.find(r => r.value === confirmedRole)?.label ?? confirmedRole}</strong>
+                          </span>
+                          <button
+                            onClick={() => setConfirmStep('select')}
+                            style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', padding: 0 }}
+                          >
+                            Change
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -196,4 +353,3 @@ export default function UserManagement() {
     </div>
   )
 }
-
